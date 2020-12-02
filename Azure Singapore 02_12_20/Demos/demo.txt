@@ -1,0 +1,5 @@
+New-AzResourceGroupDeployment -Name "do1" -ResourceGroupName "azuresingapore" -TemplateParameterFile .\template.params.json -TemplateFile .\template.json
+
+D:\repos\events\Azure Singapore 02_12_20\Demos\Testing\azuredeploy.tests.ps1
+
+Import-Module "D:\repos\arm-ttk-upstream\arm-ttk\arm-ttk.psd1"
