@@ -3,7 +3,6 @@ param keyVaultName string {
     description: 'Specifies the name of the key vault.'
   }
 }
-
 param location string {
   default: resourceGroup().location
   metadata: {
