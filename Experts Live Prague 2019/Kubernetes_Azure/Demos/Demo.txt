@@ -1,0 +1,37 @@
+###2_PodIdentity
+
+kubectl run -i --tty azure-cli --image=microsoft/azure-cli --labels="aadpodidbinding=demoidentity" --restart=Never
+
+###3_KV_Flex
+kubectl create -f 3_KV_Flex/deployment.yaml -n kv-demo
+kubectl exec -it nginx-flex-kv-podid /bin/sh -n kv-demo
+ cat /kvmnt/SuperSecretURL
+
+###4_Promitor
+kubectl port-forward svc/promitor-agent-scraper 8082:80
+http://localhost:8080/metrics
+
+kubectl port-forward svc/prometheus-server 8081:80 -n prometheus
+http://localhost:8080,
+
+
+kubectl get secret --namespace prometheus grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+
+kubectl port-forward svc/grafana 8080:80 -n prometheus 
+http://localhost:8080
+hKWfUNJEYXeZvZ4LSYFtVEEy3ltPQ8KYjksTNVBG
+
+
+http://prometheus-server.prometheus.svc.cluster.local 
+6417
+
+###5_Keda
+kubectx kedavnodedemo
+.\5_Keda\GenerateMessages.ps1
+
+###6_OSBA
+kubectl apply -f .\6_OSBA\deploy.yaml -n osba-demo
+
+###7_AppGW
+
+kubectl apply -f .\7_AppGW\ingress.yaml -n guestbook

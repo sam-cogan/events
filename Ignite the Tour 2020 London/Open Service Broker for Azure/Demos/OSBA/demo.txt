@@ -1,0 +1,2 @@
+###6_OSBA
+kubectl apply -f .\6_OSBA\deploy.yaml -n osba-demo

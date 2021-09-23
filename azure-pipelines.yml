@@ -1,0 +1,22 @@
+# Starter pipeline
+
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+- task: 12e695ee-1e9b-47f2-bc0a-3e4c726b2699@1
+  inputs:
+    templatelocation: '$(System.DefaultWorkingDirectory)\Cloudbrew 2019\ARM Template Tips\Demos\1_Functions\*.json'
+    resultLocation: '$(System.DefaultWorkingDirectory)'
+- task: PublishTestResults@2
+  inputs:
+    testResultsFormat: 'NUnit'
+    testResultsFiles: '$(System.DefaultWorkingDirectory)\*-armttk.xml'
+  condition: always()

@@ -1,0 +1,80 @@
+    {
+        "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+        "contentVersion": "1.0.0.0",
+        "parameters": {
+            "NICCount": {
+                "type": "int",
+                "defaultValue": 1
+            }
+        },
+        "variables": {
+            "NetworkName": "lambda-vnet",
+            "Subnet1Name": "lambda-subnet1",
+            "Subnet2Name": "lambda-subnet2",
+            "NICName": "lambdanic"
+  
+        },
+        "resources": [
+            {
+                "apiVersion": "2015-06-15",
+                "type": "Microsoft.Network/virtualNetworks",
+                "name": "[variables('NetworkName')]",
+                "location": "[resourceGroup().location]",
+                
+                "tags": {
+                    "displayName": "[variables('NetworkName')]"
+                },
+                "properties": {
+                    "addressSpace": {
+                        "addressPrefixes": [
+                            "10.0.0.0/16"
+                        ]
+                    },
+                    "subnets": [
+                        {
+                            "name": "[variables('Subnet1Name')]",
+                            "properties": {
+                                "addressPrefix": "10.0.0.0/24"
+                            }
+                        },
+                        {
+                            "name": "[variables('Subnet2Name')]",
+                            "properties": {
+                                "addressPrefix": "10.0.1.0/24"
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "apiVersion": "2017-04-01",
+                "type": "Microsoft.Network/networkInterfaces",
+                "name":  "[concat(variables('nicName'),'-', padleft(copyIndex(1),2,'0'))]",
+                "location": "[resourceGroup().location]",
+                "copy": {
+                    "name": "NICCount",
+                    "count": "[parameters('NICCount')]"
+                },
+                "tags": {
+                    "displayName": "parameters('NICName')"
+                },
+                "dependsOn": [
+                    "[concat('Microsoft.Network/virtualNetworks/', variables('NetworkName'))]"
+                ],
+                "properties": {
+                    "ipConfigurations": [
+                        {
+                            "name": "ipconfig1",
+                            "properties": {
+                                "privateIPAllocationMethod": "Dynamic",
+                                "subnet": {
+                                    "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('NetworkName')), '/subnets/',variables('Subnet1Name'))]"
+                                },
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "outputs": {}
+    }
