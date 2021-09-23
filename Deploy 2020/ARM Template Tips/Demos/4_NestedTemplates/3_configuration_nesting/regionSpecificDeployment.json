@@ -1,0 +1,54 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "regionname": {
+           "type": "string",
+           "allowedValues": [
+               "emea",
+               "us"
+           ],
+           "metadata": {
+                "description": ""
+            }
+        }
+    },
+    "variables": {
+        "templateURL":"[concat('https://raw.githubusercontent.com/sam-cogan/sessions/master/ARMTemplateTips/Demos/NestedTemplates/',parameters('regionName'),'.json')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2018-05-01",
+            "name": "getConfiguration",
+            "tags": {
+                "displayName": "getConfiguration"
+            },
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('templateURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {}
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2018-07-01",
+            "name": "[concat(replace(reference('getConfiguration').outputs.comfiguration.primaryRegion.prefix,'-',''), 'stg01')]",
+            "location": "[reference('getConfiguration').outputs.comfiguration.primaryRegion.location]",
+            "tags": {
+                "displayName": "[concat(replace(reference('getConfiguration').outputs.comfiguration.primaryRegion.prefix,'-',''), 'stg01')]"
+            },
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "kind": "StorageV2",
+            "dependsOn": [
+                "getConfiguration"
+            ]
+        }
+    ],
+    "outputs": {}
+}

@@ -1,0 +1,13 @@
+
+extraScrapeConfigs: |
+
+  - job_name: promitor-agent-scraper
+
+    metrics_path: /metrics
+
+    static_configs:
+
+      - targets:
+
+        - promitor-agent-scraper.default.svc.cluster.local:8888
+

@@ -1,0 +1,119 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "storageAccountName": {
+            "type": "string"
+        },
+        "storageAccountType": {
+            "type": "string"
+        },
+        "location": {
+            "type": "string"
+        },
+
+        "numberOfInstances": {
+            "type": "string"
+        },
+
+    },
+    "variables": {
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[toLower(parameters('storageAccountName'))]",
+            "location": "[parameters('location')]",
+            "apiVersion": "2018-07-01",
+            "sku": {
+                "name": "[parameters('storageAccountType')]"
+            },
+            "kind": "StorageV2",
+            "properties": {
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[concat(parameters('storageAccountName'),uniqueString(subscription().subscriptionId))]",
+            "location": "[parameters('location')]",
+            "apiVersion": "2018-07-01",
+            "sku": {
+                "name": "[parameters('storageAccountType')]"
+            },
+            "kind": "StorageV2",
+            "properties": {
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat('nic-', padLeft(copyindex(),3,'0'))]",
+            "apiVersion": "2016-03-30",
+            "location": "[parameters('location')]",
+            "copy": {
+                "name": "nicLoop",
+                "count": "[parameters('numberOfInstances')]"
+            },
+            "dependsOn": [
+                "[variables('virtualNetworkName')]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[variables('subnet1Ref')]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-08-01",
+            "type": "Microsoft.Web/sites",
+            "name": "[variables('functionAppName')]",
+            "location": "[resourceGroup().location]",
+            "kind": "functionapp",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ],
+            "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "AzureWebJobsDashboard",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                        },
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTSHARE",
+                            "value": "[toLower(variables('functionAppName'))]"
+                        },
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~1"
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "subscriptionOutput": {
+            "value": "[deployment().properties.template.parameters]",
+            "type": "object"
+        }
+
+    }
+}

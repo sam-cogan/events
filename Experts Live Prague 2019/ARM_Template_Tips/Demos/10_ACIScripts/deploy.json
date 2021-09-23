@@ -1,0 +1,297 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "KeyVaultName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of Azure Keyvault to retrieve secrets from"
+            },
+            "defaultValue": "STCaptureKV"
+        },
+        "StorageAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the storage account to store and  retrieve event data from"
+            },
+            "defaultValue": "stcapturestg"
+        },
+        "CaptureContainerName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the container in the storage account to store and retrieve event data from"
+            },
+            "defaultValue": "eventcapture"
+        },
+        "FunctionContainerName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the container in the storage account to store and retrieve event data from"
+            },
+            "defaultValue": "functionfiles"
+        },
+        "FunctionName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name for the Azure Function to Create"
+            },
+            "defaultValue": "STCaptureFunc"
+        },
+        "FunctionIntervalInMinutes": {
+            "type": "string",
+            "metadata": {
+                "description": "How often to execute the function"
+            },
+            "defaultValue": "15"
+        },
+        "CosmosDBAccount": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of Cosmos DB Account to store data in"
+            }
+        },
+        "CosmosDBDatabase": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of Cosmos DB Database to store data in"
+            }
+        },
+        "CosmosDBCollection": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of Cosmos DB Collection to store data in"
+            }
+        },
+        "CosmosDBResourceGroup": {
+           "type": "string",
+           "metadata": {
+                "description": "Resource Group that contains your Cosmos DB instance"
+            }
+        },
+        "UploadFunctionFiles":{
+            "type":"bool",
+            "metadata": {
+                "description":"Whether to run the ACI instance to upload the Function data to storage"
+            },
+            "defaultValue": true   
+        }
+    },
+    "variables": {
+        "storageAccountName": "[concat(parameters('StorageAccountName'),take(uniqueString(resourceGroup().id),5))]",
+        "keyvaultName": "[concat(parameters('KeyVaultName'),take(uniqueString(resourceGroup().id),5))]",
+        "functionName": "[concat(parameters('FunctionName'),take(uniqueString(resourceGroup().id),5))]",
+        "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+        "CosmosResourceId": "[resourceId(parameters('CosmosDBResourceGroup'),'Microsoft.DocumentDB/databaseAccounts', parameters('CosmosDBAccount'))]",
+        "CosmosApiVersion": "[providers('Microsoft.DocumentDB', 'databaseAccounts').apiVersions[0]]",
+        "FunctionZipName": "SmartThingsCollector.zip"
+
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2018-02-01",
+            "name": "[variables('StorageAccountName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "[variables('StorageAccountName')]"
+            },
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "kind": "StorageV2",
+            "properties": {},
+            "resources": [
+                {
+                    "type": "blobServices/containers",
+                    "apiVersion": "2018-03-01-preview",
+                    "name": "[concat('default/', parameters('CaptureContainerName'))]",
+                    "dependsOn": [
+                        "[variables('StorageAccountName')]"
+                    ]
+                },
+                {
+                    "type": "blobServices/containers",
+                    "apiVersion": "2018-03-01-preview",
+                    "name": "[concat('default/', parameters('FunctionContainerName'))]",
+                    "properties": {
+                        "publicAccess": "Blob"
+                    },
+                    "dependsOn": [
+                        "[variables('StorageAccountName')]"
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "apiVersion": "2017-10-01-preview",
+            "name": "[concat(variables('StorageAccountName'),'-aci')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
+            ],
+            "condition":"[parameters('UploadFunctionFiles')]",
+            "properties": {
+                "containers": [
+                    {
+                        "name": "[concat(variables('StorageAccountName'),'-aci')]",
+                        
+                        "properties": {
+                            "command":["azcopy",
+                                 "--source",
+                                 "https://scartifactstorage.blob.core.windows.net/smartthingscollector",
+                                 "--destination",
+                                 "[concat('https://',variables('storageAccountName'),'.blob.core.windows.net/',parameters('FunctionContainerName'))]",
+                                 "--dest-key",
+                                 "[listKeys(variables('storageAccountid') ,'2015-05-01-preview').key1]",
+                                 "--include",
+                                 "SmartThingsCollector.zip",
+                                 "--quiet"
+                                ],
+                           
+                            "image": "samcogan/azcopy",
+                            
+                            "resources": {
+                                "requests": {
+                                    "cpu": 1,
+                                    "memoryInGB": 1
+                                }
+                            }
+                        }
+                    }
+                ],
+                "osType": "Linux",
+                "restartPolicy": "Never"
+                
+            }
+        },
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2015-04-01",
+            "name": "[concat(variables('FunctionName'),'-plan')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "name": "[concat(variables('FunctionName'),'-plan')]",
+                "computeMode": "Dynamic",
+                "sku": "Dynamic"
+            }
+        },
+        {
+            "apiVersion": "2015-08-01",
+            "name": "[variables('FunctionName')]",
+            "type": "Microsoft.Web/sites",
+            "location": "[resourceGroup().location]",
+            "kind": "functionapp",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', concat(variables('FunctionName'),'-plan'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "[resourceId('Microsoft.ContainerInstance/containerGroups', concat(variables('StorageAccountName'),'-aci'))]"
+            ],
+            "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', concat(variables('FunctionName'),'-plan'))]",
+                "siteConfig": {
+                    "connectionStrings": [
+                        {
+                          "name": "CosmosDBConnection",
+                          "connectionString": "[concat('AccountEndpoint=https://', parameters('CosmosDBAccount'), '.documents.azure.com:443/;AccountKey=', listKeys(variables('CosmosResourceId'), variables('CosmosApiVersion')).primaryMasterKey, ';')]"
+                        }
+                    ],
+                    "appSettings": [
+                        {
+                            "name": "AzureWebJobsDashboard",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                        },
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                        },
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~2"
+                        },
+                        {
+                            "name": "KeyvaultName",
+                            "value": "[variables('KeyVaultName')]"
+                        },
+                        {
+                            "name": "StorageAccountName",
+                            "value": "[variables('storageAccountName')]"
+                        },
+                        {
+                            "name": "StorageContainerName",
+                            "value": "[parameters('CaptureContainerName')]"
+                        },
+                        {
+                            "name": "TimerInterval",
+                            "value": "[concat('0 */',parameters('FunctionIntervalInMinutes') , ' * * * *')]"
+                        },
+                        {
+                            "name": "ComsosDatabase",
+                            "value": "[parameters('CosmosDBDatabase')]"
+                        },
+                        {
+                            "name": "CosmosCollection",
+                            "value": "[parameters('CosmosDBCollection')]"
+                        },
+                        {
+                            "name": "StorageAccountKeySecretName",
+                            "value": "StorageAccountKeySecret"
+                        },
+                        {
+                            "name": "WEBSITE_RUN_FROM_PACKAGE",
+                            "value": "[concat('https://',variables('storageAccountName'),'.blob.core.windows.net/',parameters('functionContainerName'),'/', variables('FunctionZipName'))]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults",
+            "apiVersion": "2015-06-01",
+            "name": "[variables('KeyVaultName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "[variables('KeyVaultName')]"
+            },
+            "properties": {
+                "tenantId": "[reference(concat('Microsoft.Web/sites/', variables('FunctionName')), '2015-08-01', 'Full').identity.tenantId]",
+                "enabledForDeployment": true,
+                "enabledForTemplateDeployment": true,
+                "enabledForDiskEncryption": true,
+                "accessPolicies": [
+                    {
+                        "objectId": "[reference(concat('Microsoft.Web/sites/', variables('FunctionName')), '2015-08-01', 'Full').identity.principalId]",
+                        "tenantId": "[reference(concat('Microsoft.Web/sites/', variables('FunctionName')), '2015-08-01', 'Full').identity.tenantId]",
+                        "permissions": {
+                            "secrets": [
+                                "list",
+                                "get"
+                            ]
+                        }
+                    }
+                ],
+                "sku": {
+                    "name": "standard",
+                    "family": "A"
+                }
+            },
+            "resources": []
+        },
+        {
+            "apiVersion": "2015-06-01",
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "name": "[concat(variables('keyvaultName'), '/', 'StorageAccountKeySecret')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', concat(variables('keyvaultName')))]"
+
+            ],
+            "properties": {
+                "value": "[listKeys(variables('storageAccountid'),'2015-05-01-preview').key1]"
+            }
+        }
+    ],
+    "outputs": {}
+}

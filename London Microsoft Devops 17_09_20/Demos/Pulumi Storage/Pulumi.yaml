@@ -1,0 +1,3 @@
+name: PulumStorage
+runtime: dotnet
+description: Pulumi Demo for London Windows DevOps

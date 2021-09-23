@@ -1,0 +1,5 @@
+New-AzResourceGroupDeployment -Name "do1" -ResourceGroupName "londondevopsdemo" -TemplateParameterFile .\template.params.json -TemplateFile .\template.json
+
+D:\repos\events\London Microsoft Devops 17_09_20\Demos\Testing\azuredeploy.tests.ps1
+
+    Import-Module "D:\repos\arm-ttk-upstream\arm-ttk\arm-ttk.psd1"

@@ -1,0 +1,33 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {},
+    "variables": {
+        "configuration":{
+            "primaryRegion":{
+                "location":"West Europe",
+                "prefix":"lbd-we",
+                "vnetName":"lbd-we-vnet",
+                "diagnosticStorage":"lbddiagstoragtewe"
+
+
+            },
+            "secondaryRegion":{
+                "location":"North Europe",
+                "prefix":"lbd-ne",
+                "vnetName":"lbd-ne-vnet",
+                "diagnosticStorage":"lbddiagstoragtene"
+                
+            }
+            
+
+        }
+    },
+    "resources": [],
+    "outputs": {
+        "configuration": {
+            "value": "[variables('configuration')]",
+            "type": "object"
+        }
+    }
+}
