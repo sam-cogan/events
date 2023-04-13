@@ -1,5 +1,10 @@
 param storageacccountname string = 'storage'
-var storageaccountsku = 'LRS'
+@allowed([
+  'Standard_LRS'
+  'Standard_GRS'
+  'Standard_ZRS'
+])
+param storageaccountsku string = 'Standard_LRS'
 
 resource StorageAccountName_resource 'Microsoft.Storage/storageAccounts@2018-07-01' = {
   name: storageacccountname
@@ -8,7 +13,7 @@ resource StorageAccountName_resource 'Microsoft.Storage/storageAccounts@2018-07-
     displayName: storageacccountname
   }
   sku: {
-    name: 'Standard_LRS'
+    name: storageaccountsku
   }
   kind: 'StorageV2'
 }
